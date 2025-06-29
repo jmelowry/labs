@@ -1,0 +1,140 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: load-generator-script
+  namespace: webapp-backend
+  labels:
+    app: load-generator
+data:
+  load-generator.py: |
+    #!/usr/bin/env python3
+    import yaml
+    import requests
+    import time
+    import random
+    import json
+    import logging
+    import sys
+    from datetime import datetime
+    
+    def setup_logging(config):
+        level = getattr(logging, config['logging']['level'])
+        if config['logging']['format'] == 'json':
+            logging.basicConfig(
+                level=level,
+                format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s"}',
+                datefmt='%Y-%m-%dT%H:%M:%S'
+            )
+        else:
+            logging.basicConfig(level=level)
+    
+    def weighted_choice(endpoints):
+        """Select an endpoint based on weights"""
+        total_weight = sum(ep['weight'] for ep in endpoints)
+        r = random.uniform(0, total_weight)
+        upto = 0
+        for endpoint in endpoints:
+            if upto + endpoint['weight'] >= r:
+                return endpoint
+            upto += endpoint['weight']
+        return endpoints[-1]  # fallback
+    
+    def send_request(base_url, endpoint, timeout):
+        """Send a request to the specified endpoint"""
+        url = f"{base_url}{endpoint['path']}"
+        start_time = time.time()
+        
+        try:
+            response = requests.get(url, timeout=timeout)
+            duration = time.time() - start_time
+            
+            log_data = {
+                "url": url,
+                "method": endpoint['method'],
+                "status_code": response.status_code,
+                "duration_ms": round(duration * 1000, 2),
+                "response_size": len(response.content),
+                "success": response.status_code < 400
+            }
+            
+            if response.status_code < 400:
+                logging.info(json.dumps(log_data))
+            else:
+                log_data["error"] = f"HTTP {response.status_code}"
+                logging.warning(json.dumps(log_data))
+                
+            return response.status_code < 400
+            
+        except requests.exceptions.Timeout:
+            duration = time.time() - start_time
+            log_data = {
+                "url": url,
+                "method": endpoint['method'],
+                "duration_ms": round(duration * 1000, 2),
+                "error": "timeout",
+                "success": False
+            }
+            logging.error(json.dumps(log_data))
+            return False
+            
+        except Exception as e:
+            duration = time.time() - start_time
+            log_data = {
+                "url": url,
+                "method": endpoint['method'],
+                "duration_ms": round(duration * 1000, 2),
+                "error": str(e),
+                "success": False
+            }
+            logging.error(json.dumps(log_data))
+            return False
+    
+    def main():
+        # Load configuration
+        with open('/config/config.yaml', 'r') as f:
+            config = yaml.safe_load(f)
+        
+        setup_logging(config)
+        
+        logging.info(json.dumps({
+            "message": "Load generator starting",
+            "target_url": config['target']['base_url'],
+            "requests_per_run": config['requests']['count_per_run']
+        }))
+        
+        base_url = config['target']['base_url']
+        timeout = config['target']['timeout']
+        endpoints = config['endpoints']
+        request_count = config['requests']['count_per_run']
+        delay = config['requests']['delay_between_requests']
+        
+        successful_requests = 0
+        total_requests = 0
+        
+        for i in range(request_count):
+            endpoint = weighted_choice(endpoints)
+            success = send_request(base_url, endpoint, timeout)
+            
+            if success:
+                successful_requests += 1
+            total_requests += 1
+            
+            # Wait between requests (except for the last one)
+            if i < request_count - 1:
+                time.sleep(delay)
+        
+        # Log summary
+        success_rate = (successful_requests / total_requests) * 100 if total_requests > 0 else 0
+        logging.info(json.dumps({
+            "message": "Load generator completed",
+            "total_requests": total_requests,
+            "successful_requests": successful_requests,
+            "success_rate_percent": round(success_rate, 2)
+        }))
+        
+        # Exit with error code if success rate is too low
+        if success_rate < 80:
+            sys.exit(1)
+    
+    if __name__ == "__main__":
+        main()

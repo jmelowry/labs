@@ -1,0 +1,74 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: load-generator
+  namespace: webapp-backend
+  labels:
+    app: load-generator
+spec:
+  # Run every 2 minutes - can be easily changed
+  schedule: "*/2 * * * *"
+  
+  # Keep last 3 successful and 1 failed job for debugging
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  
+  # Don't start new job if previous one is still running
+  concurrencyPolicy: Forbid
+  
+  jobTemplate:
+    metadata:
+      labels:
+        app: load-generator
+    spec:
+      # Clean up completed jobs after 120 seconds
+      ttlSecondsAfterFinished: 120
+      
+      template:
+        metadata:
+          labels:
+            app: load-generator
+        spec:
+          restartPolicy: Never
+          
+          containers:
+          - name: load-generator
+            image: python:3.11-alpine
+            
+            command: ["/bin/sh"]
+            args:
+              - -c
+              - |
+                echo "Installing dependencies..."
+                pip install --no-cache-dir requests pyyaml
+                echo "Starting load generator..."
+                python /script/load-generator.py
+            
+            resources:
+              requests:
+                memory: "64Mi"
+                cpu: "50m"
+              limits:
+                memory: "128Mi"
+                cpu: "200m"
+            
+            volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: script
+              mountPath: /script
+              readOnly: true
+              
+            env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          
+          volumes:
+          - name: config
+            configMap:
+              name: load-generator-config
+          - name: script
+            configMap:
+              name: load-generator-script
+              defaultMode: 0755

@@ -1,0 +1,1 @@
+Deploy Prometheus locally and collect node metrics.

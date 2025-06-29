@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: load-generator-config
+  namespace: webapp-backend
+  labels:
+    app: load-generator
+data:
+  config.yaml: |
+    # Load Generator Configuration
+    target:
+      base_url: "http://webapp-backend-service.webapp-backend.svc.cluster.local"
+      timeout: 10
+    
+    # Endpoints to test with their weights (probability of being called)
+    endpoints:
+      - path: "/health"
+        weight: 20
+        method: "GET"
+      - path: "/api/users"
+        weight: 25
+        method: "GET"
+      - path: "/api/products"
+        weight: 25
+        method: "GET"
+      - path: "/api/orders"
+        weight: 15
+        method: "GET"
+      - path: "/api/metrics"
+        weight: 10
+        method: "GET"
+      - path: "/api/status"
+        weight: 5
+        method: "GET"
+    
+    # Request configuration
+    requests:
+      count_per_run: 5  # Number of requests to send per CronJob execution
+      delay_between_requests: 1  # Seconds to wait between requests
+      
+    # Logging configuration
+    logging:
+      level: "INFO"
+      format: "json"

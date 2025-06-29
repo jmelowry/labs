@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: webapp-backend-config
+  namespace: webapp-backend
+  labels:
+    app: webapp-backend
+data:
+  nginx.conf: |
+    events {
+        worker_connections 1024;
+    }
+    
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+        
+        log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" '
+                        '"$http_user_agent" "$http_x_forwarded_for"';
+        
+        access_log /var/log/nginx/access.log main;
+        error_log /var/log/nginx/error.log;
+        
+        sendfile on;
+        keepalive_timeout 65;
+        
+        server {
+            listen 80;
+            server_name localhost;
+            
+            # Health check endpoint
+            location /health {
+                access_log off;
+                return 200 '{"status":"healthy","timestamp":"$time_iso8601"}\n';
+                add_header Content-Type application/json;
+            }
+            
+            # API endpoints for demo
+            location /api/users {
+                return 200 '[{"id":1,"name":"Alice","email":"alice@example.com"},{"id":2,"name":"Bob","email":"bob@example.com"}]\n';
+                add_header Content-Type application/json;
+            }
+            
+            location /api/products {
+                return 200 '[{"id":1,"name":"Laptop","price":999.99},{"id":2,"name":"Mouse","price":29.99},{"id":3,"name":"Keyboard","price":79.99}]\n';
+                add_header Content-Type application/json;
+            }
+            
+            location /api/orders {
+                return 200 '[{"id":1,"userId":1,"productId":1,"quantity":1,"total":999.99},{"id":2,"userId":2,"productId":2,"quantity":2,"total":59.98}]\n';
+                add_header Content-Type application/json;
+            }
+            
+            location /api/metrics {
+                return 200 '{"requests_total":42,"response_time_avg":0.123,"errors_total":0,"uptime_seconds":3600}\n';
+                add_header Content-Type application/json;
+            }
+            
+            location /api/status {
+                return 200 '{"service":"webapp-backend","version":"1.0.0","environment":"lab","database_connected":true}\n';
+                add_header Content-Type application/json;
+            }
+            
+            # Default endpoint
+            location / {
+                return 200 '{"message":"Welcome to webapp-backend API","endpoints":["/health","/api/users","/api/products","/api/orders","/api/metrics","/api/status"]}\n';
+                add_header Content-Type application/json;
+            }
+        }
+    }

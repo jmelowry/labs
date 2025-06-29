@@ -1,0 +1,23 @@
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: prometheus-stack
+servers: 1
+agents: 2
+files:
+  - source: manifests/webapp-backend-namespace.yaml
+    destination: /var/lib/rancher/k3s/server/manifests/webapp-backend-namespace.yaml
+  - source: manifests/webapp-backend-configmap.yaml
+    destination: /var/lib/rancher/k3s/server/manifests/webapp-backend-configmap.yaml
+  - source: manifests/webapp-backend-deployment.yaml
+    destination: /var/lib/rancher/k3s/server/manifests/webapp-backend-deployment.yaml
+  - source: manifests/webapp-backend-service.yaml
+    destination: /var/lib/rancher/k3s/server/manifests/webapp-backend-service.yaml
+  - source: manifests/load-generator-configmap.yaml
+    destination: /var/lib/rancher/k3s/server/manifests/load-generator-configmap.yaml
+  - source: manifests/load-generator-script.yaml
+    destination: /var/lib/rancher/k3s/server/manifests/load-generator-script.yaml
+  - source: manifests/load-generator-cronjob.yaml
+    destination: /var/lib/rancher/k3s/server/manifests/load-generator-cronjob.yaml
+  - source: manifests/kube-prometheus-stack.yaml
+    destination: /var/lib/rancher/k3s/server/manifests/prometheus.yaml
