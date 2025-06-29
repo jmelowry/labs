@@ -19,5 +19,5 @@ files:
     destination: /var/lib/rancher/k3s/server/manifests/load-generator-script.yaml
   - source: manifests/load-generator-cronjob.yaml
     destination: /var/lib/rancher/k3s/server/manifests/load-generator-cronjob.yaml
-  - source: manifests/kube-prometheus-stack.yaml
+  - source: manifests/prometheus.yaml
     destination: /var/lib/rancher/k3s/server/manifests/prometheus.yaml

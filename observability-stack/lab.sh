@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
+
 function start_cluster() {
     echo starting cluster
     k3d cluster create --config k3d.yaml
@@ -57,25 +59,18 @@ function render_helm_manifests() {
     if [ ! -f "./manifests/prometheus.yaml" ]; then
         helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
         helm repo update
-        kubectl config use-context k3d-prometheus-stack
-        helm template prometheus-stack prometheus-community/kube-prometheus-stack -f ./manifests/prometheus-values.yaml > ./manifests/prometheus.yaml
+        # kubectl config use-context k3d-prometheus-stack
+        helm template prometheus-stack prometheus-community/kube-prometheus-stack -f ./charts/prometheus-values.yaml > ./manifests/prometheus.yaml
     else
-        echo "Using existing prometheus-values.yaml"
+        echo "Using existing prometheus.yaml"
     fi
 }
-
-# function port_forward() {
-#     echo "Port forwarding to localhost:9090"
-#     kubectl port-forward svc/prometheus-operated 9090:9090 --context k3d-prometheus-stack &
-#     echo "Port forwarding to localhost:3000"
-#     kubectl port-forward svc/grafana 3000:80 --context k3d-prometheus-stack &
-# }
 
 case "${1:-status}" in
     start)
         verify_requirements
-        start_cluster
         render_helm_manifests
+        start_cluster
         # port_forward
         exit 0
         ;;
